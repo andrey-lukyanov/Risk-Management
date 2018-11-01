@@ -1,4 +1,4 @@
-#VaR for shares
+##VaR for shares
 
 #librares
 
@@ -10,6 +10,7 @@ library(readr)
 library(ggplot2)
 library(forecast)
 library(tseries)
+library(MASS)
 
 #glimpse on data
 return_1<-read_csv("1_day_returns.csv")
@@ -22,11 +23,15 @@ Date_10<-return_10$Date
 Date_pr<-prices$Date
 Date_lg<-log_r_1$Date
 
-r_10<-select(return_10, -Date)%>%xts(order.by = Date_10)
+#won't work with packages fitdistrplus and logspline due to conflict with MASS !!!
+require(MASS)
+require(dplyr)
+
+r_10<-select(return_10,-Date)%>%xts(order.by = Date_10)
 
 #log_returns
 class(log_r_1)
-ts_lr_1<-select(log_r_1, -Date)%>%xts(order.by = Date_lg)
+ts_lr_1<-select(log_r_1,-Date)%>%xts(order.by = Date_lg)
 
 #finaly data to use
 
@@ -38,10 +43,48 @@ autoplot.zoo(r_10)
 
 #Desc_Statistics
 
-statistics<-summary(ts_lr_1)
-skewness(ts_lr_1)
+a<-summary(ts_lr_1)
+b<-skewness(ts_lr_1)
+c<-kurtosis(ts_lr_1)
 
-#first try Value-a-risk and Expected Shortfall
+#Is it normal?
+plot(density(return_1$HSBA.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$BARC.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$LLOY.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$RBS.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$BP.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$RDSA.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$RIO.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$AAL.UK),main="Empirical cumulative distribution function ")
+
+
+#VaR_Manually
+
+##Cov and Corr
+
+cov_ln_1<-CoVariance(ts_lr_1, ts_lr_1)
+cov_10<-CoVariance(r_10, r_10)
+chart.Correlation(ts_lr_1, ts_lr_1)
+cor(ts_lr_1)
+cor(r_10)
+w<-c(.1,.1,.1, .1, .125,.125,.175,.175)
+
+s_1<-sqrt(t(w)%*%cov_ln_1%*%w)
+s_10<-sqrt(t(w)%*%cov_10%*%w)
+
+#VaR_Gaussian
+VaR_DN_1<-qnorm(p=.01)*s_1
+VaR_DN_10<-qnorm(p=.01)*s_10
+
+#ES_Gaussian
+
+
+#VaR_
+
+
+#ES_manually
+
+#VaR and ES with packages
 
 VaR(r_1, p=0.99, method = "historical", portfolio_method = "component", weights = c(.1,.1,.1, .1, .125,.125,.175,.175)) 
 ES(ts_lr_1, p=0.99, method = "historical", portfolio_method = "single")
