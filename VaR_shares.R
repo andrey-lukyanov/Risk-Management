@@ -62,6 +62,7 @@ plot(density(return_1$RDSA.UK),main="Empirical cumulative distribution function 
 plot(density(return_1$RIO.UK),main="Empirical cumulative distribution function ")
 plot(density(return_1$AAL.UK),main="Empirical cumulative distribution function ")
 
+#no, it is not. fckit
 
 #VaR_Manually
 
@@ -136,7 +137,7 @@ VaR_HS_10<-prob_10[m, 2]
 max(s_i1)>VaR_HS_1 #something wrong
 max(s_i10)>VaR_HS_10
 
-#ES_Historical NO, NOOOOO"
+#ES_Historical NO, NOOOOO
 
 #VaR_Model_PCA
 library(devtools)
@@ -152,7 +153,10 @@ ggbiplot(pca)
 
 # source("https://bioconductor.org/biocLite.R")
 # biocLite("pcaMethods")
-# library(pcaMethods)
+library(pcaMethods)
+pcamet<-pca(ts_lr_1, scale = "vector", center = F, nPcs = 4, method = "svd")
+slplot(pcamet)
+
 
 #ES_Model
 
