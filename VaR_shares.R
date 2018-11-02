@@ -1,4 +1,4 @@
-#VaR for shares
+##VaR for shares
 
 #librares
 
@@ -22,11 +22,15 @@ Date_10<-return_10$Date
 Date_pr<-prices$Date
 Date_lg<-log_r_1$Date
 
-r_10<-select(return_10, -Date)%>%xts(order.by = Date_10)
+#won't work with packages fitdistrplus and logspline due to conflict with MASS !!!
+prices<-select(-Date)%>%xts(order.by = Date_pr)
+r_10<-select(return_10,-Date)%>%xts(order.by = Date_10)
+r_1<-select(return_1,-Date)%>%xts(order.by = Date_1)
+
 
 #log_returns
 class(log_r_1)
-ts_lr_1<-select(log_r_1, -Date)%>%xts(order.by = Date_lg)
+ts_lr_1<-select(log_r_1,-Date)%>%xts(order.by = Date_lg)
 
 #finaly data to use
 
@@ -38,10 +42,127 @@ autoplot.zoo(r_10)
 
 #Desc_Statistics
 
-statistics<-summary(ts_lr_1)
-skewness(ts_lr_1)
+a<-summary(ts_lr_1)
+b<-skewness(ts_lr_1)
+c<-kurtosis(ts_lr_1)
 
-#first try Value-a-risk and Expected Shortfall
+#Is it normal?
+plot(density(return_1$HSBA.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$BARC.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$LLOY.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$RBS.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$BP.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$RDSA.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$RIO.UK),main="Empirical cumulative distribution function ")
+plot(density(return_1$AAL.UK),main="Empirical cumulative distribution function ")
 
-VaR(r_1, p=0.99, method = "historical", portfolio_method = "component", weights = c(.1,.1,.1, .1, .125,.125,.175,.175)) 
+
+#VaR_Manually
+
+##Cov and Corr
+
+cov_ln_1<-CoVariance(ts_lr_1, ts_lr_1)
+cov_10<-CoVariance(r_10, r_10)
+s_i1<-diag(cov_ln_1)
+s_i10<-diag(cov_10)
+
+chart.Correlation(ts_lr_1, ts_lr_1)
+cor(ts_lr_1)
+cor(r_10)
+w<-c(.1,.1,.1, .1, .125,.125,.175,.175)
+
+s_1<-sqrt(t(w)%*%cov_ln_1%*%w)
+s_10<-sqrt(t(w)%*%cov_10%*%w)
+
+#VaR_Gaussian (need to model a R_Hui distr !!!)
+VaR_DN_1<-qnorm(p=.01)*s_1
+VaR_DN_10<-qnorm(p=.01)*s_10
+
+max(s_i1)>VaR_DN_1
+max(s_i10)>VaR_DN_10
+
+
+#ES_Gaussian
+ES_DN_1<-pnorm(q=.01)*s_1
+ES_DN_10<-pnorm(q=.01)*s_10
+
+VaR(ts_lr_1, p=0.99, method = "gaussian", portfolio_method = "component", weights = c(.1,.1,.1, .1, .125,.125,.175,.175)) 
+
+
+#VaR_Historical_1
+w
+Scen<- r_1%*%w
+
+i=0
+for (i in 0:(nrow(r_1)-1)){
+  i=i+1
+  f[i]<-i/nrow(r_1)
+  f
+}
+f
+
+prob_1<-cbind(Scen, f)%>%as.data.frame()%>%arrange(desc(f)) #from the largest to the least !!!
+
+n<-round(nrow(prob_1)*0.99, digits = 0)
+
+VaR_HS_1<-prob_1[n, 2]
+
+#VaR_Historical_10
+
+Scen_10<- r_10%*%w
+
+i=0
+for (i in 0:(nrow(r_10)-1)){
+  i=i+1
+  f[i]<-i/nrow(r_10)
+  f
+}
+f
+
+prob_10<-cbind(Scen_10, f)%>%as.data.frame()%>%arrange(desc(f)) #from the largest to the least !!!
+
+m<-round(nrow(prob_1)*0.99, digits = 0)
+
+VaR_HS_10<-prob_10[m, 2]
+
+#Dumb test
+max(s_i1)>VaR_HS_1 #something wrong
+max(s_i10)>VaR_HS_10
+
+#ES_Historical NO, NOOOOO"
+
+#VaR_Model_PCA
+library(devtools)
+#install_github("vqv/ggbiplot")
+library(ggbiplot)
+
+#under assumption of norm distribution
+
+pca<-prcomp(ts_lr_1, center = T,scale. = T, retx = T)
+summary(pca)
+
+ggbiplot(pca)
+
+# source("https://bioconductor.org/biocLite.R")
+# biocLite("pcaMethods")
+# library(pcaMethods)
+
+#ES_Model
+
+
+
+#VaR and ES with packages
+
+#VaR(r_10, p=0.99, method = "historical", portfolio_method = "component", weights = c(.1,.1,.1, .1, .125,.125,.175,.175))
 ES(ts_lr_1, p=0.99, method = "historical", portfolio_method = "single")
+
+
+
+
+
+
+
+
+
+
+
