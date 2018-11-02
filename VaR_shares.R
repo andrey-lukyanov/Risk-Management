@@ -23,7 +23,7 @@ Date_pr<-prices$Date
 Date_lg<-log_r_1$Date
 
 #won't work with packages fitdistrplus and logspline due to conflict with MASS !!!
-prices<-select(-Date)%>%xts(order.by = Date_pr)
+prices<-select(prices, -Date)%>%xts(order.by = Date_pr)
 r_10<-select(return_10,-Date)%>%xts(order.by = Date_10)
 r_1<-select(return_1,-Date)%>%xts(order.by = Date_1)
 
@@ -95,12 +95,13 @@ w
 Scen<- r_1%*%w
 
 i=0
+g=c()
 for (i in 0:(nrow(r_1)-1)){
   i=i+1
-  f[i]<-i/nrow(r_1)
-  f
+  g[i]<-i/nrow(r_1)
+  g
 }
-f
+g
 
 prob_1<-cbind(Scen, f)%>%as.data.frame()%>%arrange(desc(f)) #from the largest to the least !!!
 
@@ -113,6 +114,7 @@ VaR_HS_1<-prob_1[n, 2]
 Scen_10<- r_10%*%w
 
 i=0
+f<-c()
 for (i in 0:(nrow(r_10)-1)){
   i=i+1
   f[i]<-i/nrow(r_10)
@@ -149,6 +151,8 @@ ggbiplot(pca)
 library(pcaMethods)
 pcamet<-pca(ts_lr_1, scale = "vector", center = F, nPcs = 4, method = "svd")
 slplot(pcamet)
+
+
 
 
 #ES_Model
