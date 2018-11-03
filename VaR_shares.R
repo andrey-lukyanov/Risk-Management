@@ -10,6 +10,7 @@ library(readr)
 library(ggplot2)
 library(forecast)
 library(tseries)
+library(dplyr)
 
 #glimpse on data
 return_1<-read_csv("1_day_returns.csv")
@@ -23,9 +24,18 @@ Date_pr<-prices$Date
 Date_lg<-log_r_1$Date
 
 #won't work with packages fitdistrplus and logspline due to conflict with MASS !!!
-prices<-select(-Date)%>%xts(order.by = Date_pr)
+prices<-select(prices,-Date)%>%xts(order.by = Date_pr)
 r_10<-select(return_10,-Date)%>%xts(order.by = Date_10)
 r_1<-select(return_1,-Date)%>%xts(order.by = Date_1)
+
+tsRainbow_r1 <- rainbow(ncol(r_1))
+plot(r_1, col=tsRainbow_r1, plot.type="single", xaxt="n", yaxt="n")
+
+tsRainbow_r10 <- rainbow(ncol(r_10))
+plot(r_10, col=tsRainbow, plot.type="single", xaxt="n", yaxt="n") #vse ochen' plokho
+
+tsRainbow_pr <- rainbow(ncol(prices))
+plot(prices, col=tsRainbow_pr, plot.type="single", xaxt="n", yaxt="n")
 
 
 #log_returns
@@ -40,17 +50,16 @@ View(r_10)
 autoplot.zoo(ts_lr_1)
 autoplot.zoo(r_10)
 
-#Desc_Statistics
+tsRainbow <- rainbow(ncol(ts_lr_1))
+plot(ts_lr_1, col=tsRainbow, plot.type="single", xaxt="n", yaxt="n") #vse ochen' plokho
 
-<<<<<<< HEAD
+#Desc_Statistics
+summary(ts_lr_1)
+skewness(ts_lr_1)
+kurtosis(ts_lr_1)
 statistics<-summary(ts_lr_1)
 skewness(ts_lr_1)
 kurtosis(ts_lr_1)
-
-=======
-a<-summary(ts_lr_1)
-b<-skewness(ts_lr_1)
-c<-kurtosis(ts_lr_1)
 
 #Is it normal?
 plot(density(return_1$HSBA.UK),main="Empirical cumulative distribution function ")
@@ -81,32 +90,34 @@ w<-c(.1,.1,.1, .1, .125,.125,.175,.175)
 s_1<-sqrt(t(w)%*%cov_ln_1%*%w)
 s_10<-sqrt(t(w)%*%cov_10%*%w)
 
+#Dumb test
+max(s_i1)>s_1
+max(s_i10)>s_10
+
 #VaR_Gaussian (need to model a R_Hui distr !!!)
-VaR_DN_1<-qnorm(p=.01)*s_1
-VaR_DN_10<-qnorm(p=.01)*s_10
-
-max(s_i1)>VaR_DN_1
-max(s_i10)>VaR_DN_10
-
+VaR_DN_1<- -qnorm(p=.01)*s_1
+VaR_DN_10<- -qnorm(p=.01)*s_10
 
 #ES_Gaussian
 ES_DN_1<-pnorm(q=.01)*s_1
 ES_DN_10<-pnorm(q=.01)*s_10
 
-VaR(ts_lr_1, p=0.99, method = "gaussian", portfolio_method = "component", weights = c(.1,.1,.1, .1, .125,.125,.175,.175)) 
+#Check-in with a help of the special package
 
+PA_1<-VaR(ts_lr_1, p=0.99, method = "gaussian", portfolio_method = "component", weights = c(.1,.1,.1, .1, .125,.125,.175,.175))
 
 #VaR_Historical_1
 w
 Scen<- r_1%*%w
 
 i=0
+g=c()
 for (i in 0:(nrow(r_1)-1)){
   i=i+1
-  f[i]<-i/nrow(r_1)
-  f
+  g[i]<-i/nrow(r_1)
+  g
 }
-f
+g
 
 prob_1<-cbind(Scen, f)%>%as.data.frame()%>%arrange(desc(f)) #from the largest to the least !!!
 
@@ -119,6 +130,7 @@ VaR_HS_1<-prob_1[n, 2]
 Scen_10<- r_10%*%w
 
 i=0
+f<-c()
 for (i in 0:(nrow(r_10)-1)){
   i=i+1
   f[i]<-i/nrow(r_10)
@@ -127,9 +139,8 @@ for (i in 0:(nrow(r_10)-1)){
 f
 
 prob_10<-cbind(Scen_10, f)%>%as.data.frame()%>%arrange(desc(f)) #from the largest to the least !!!
->>>>>>> 2c0138dc5427e945a31a74f19ba00650c80e5874
 
-m<-round(nrow(prob_1)*0.99, digits = 0)
+m<-round(nrow(prob_10)*0.99, digits = 0)
 
 VaR_HS_10<-prob_10[m, 2]
 
@@ -146,20 +157,56 @@ library(ggbiplot)
 
 #under assumption of norm distribution
 
-pca<-prcomp(ts_lr_1, center = T,scale. = T, retx = T)
-summary(pca)
+pca_1<-prcomp(ts_lr_1, center = T,scale. = T, retx = T)
+glimpse(pca_1)
 
-ggbiplot(pca)
+pca_directions1<-pca_1$scale%>%as.data.frame()
+pca_factors1<-pca_1$x%>%as.data.frame()
+coef_m<-t(pca_1$rotation)
+summary(pca_factors1)
+var_f1<-var(pca_factors1)%>%diag()
+var_f1
+var_coef<-var(coef_m)
+
+ggplot(pca_factors1, alpha=.9)+geom_density(aes(x=PC1, fill='red',alpha=.5))+geom_density(aes(x=PC2,fill='blue',alpha=.5))+geom_density(aes(x=PC3, fill='green',alpha=.5))+geom_density(aes(x=PC4,fill='yellow',alpha=.5))+geom_density(aes(x=PC5, fill='purple',alpha=.5))+ 
+  geom_density(aes(x=PC6, fill='orange',alpha=.5))+geom_density(aes(x=PC7, fill='pink',alpha=.5))+geom_density(aes(x=PC8, fill='black',alpha=.5))
+
+# #Dumb test
+# reconst_1<-pca_factors1%*%pca_directions1
+#
+
+#model ajustment LOST HERE 
+
+mat1<-eigen(cor(scale(ts_lr_1)))
+l_1<-mat1$vectors
+ev_1<-mat1$values
+
+share_pca<-crossprod(coef_m)
+pca_unajd<-t(w)%*%coef_m%*%w
+
+cum_var<-sum(var_coef)
+pca_rescale<-pca_unajd/cum_var
+
+ggbiplot(pca,labels=rownames(ts_lr_1))
+ggbiplot(pca, choices = c(1,2),labels=rownames(ts_lr_1))
+
+ggbiplot(pca,labels=rownames(ts_lr_1))
+
+
 
 # source("https://bioconductor.org/biocLite.R")
 # biocLite("pcaMethods")
 library(pcaMethods)
 pcamet<-pca(ts_lr_1, scale = "vector", center = F, nPcs = 4, method = "svd")
 slplot(pcamet)
+glimpse(pcamet)
+
+#Finally, it's driven mad
+require(ggplot2)
+require(reshape2)
 
 
 #ES_Model
-
 
 
 #VaR and ES with packages
@@ -167,27 +214,12 @@ slplot(pcamet)
 #VaR(r_10, p=0.99, method = "historical", portfolio_method = "component", weights = c(.1,.1,.1, .1, .125,.125,.175,.175))
 ES(ts_lr_1, p=0.99, method = "historical", portfolio_method = "single")
 
-
-<<<<<<< HEAD
 portfolio_returns <- ts_lr_1 %*% c(.1,.1,.1, .1, .125,.125,.175,.175) 
 
 skewness(portfolio_returns)
 kurtosis(portfolio_returns)
-
 hist(portfolio_returns)
-
 library(fitdistrplus)
 library(logspline)
-
 descdist(c(portfolio_returns), discrete = FALSE)
-=======
-
-
-
->>>>>>> 2c0138dc5427e945a31a74f19ba00650c80e5874
-
-
-
-
-
 
