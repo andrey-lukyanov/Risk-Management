@@ -179,11 +179,17 @@ mat1<-eigen(cor(scale(ts_lr_1)))
 l_1<-mat1$vectors
 ev_1<-mat1$values
 
-share_pca<-crossprod(coef_m)
-pca_unajd<-t(w)%*%coef_m%*%w
+library(Matrix)
+
+share_pca<-l_1%*%t(Diagonal(ev_1))
+pca_unajd<-t(w)%*%share_pca%*%w
 
 cum_var<-sum(var_coef)
 pca_rescale<-pca_unajd/cum_var
+
+cross_val<-share_pca/sqrt(share_pca[8,8])
+share_adj<-share_pca - cov_ln_1 #hernya kakaya-nto
+pca_adj<-
 
 ggbiplot(pca,labels=rownames(ts_lr_1))
 ggbiplot(pca, choices = c(1,2),labels=rownames(ts_lr_1))
