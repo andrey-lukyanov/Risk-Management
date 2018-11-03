@@ -54,8 +54,10 @@ tsRainbow <- rainbow(ncol(ts_lr_1))
 plot(ts_lr_1, col=tsRainbow, plot.type="single", xaxt="n", yaxt="n") #vse ochen' plokho
 
 #Desc_Statistics
-
 summary(ts_lr_1)
+skewness(ts_lr_1)
+kurtosis(ts_lr_1)
+statistics<-summary(ts_lr_1)
 skewness(ts_lr_1)
 kurtosis(ts_lr_1)
 
@@ -218,8 +220,12 @@ require(reshape2)
 #VaR(r_10, p=0.99, method = "historical", portfolio_method = "component", weights = c(.1,.1,.1, .1, .125,.125,.175,.175))
 ES(ts_lr_1, p=0.99, method = "historical", portfolio_method = "single")
 
+portfolio_returns <- ts_lr_1 %*% c(.1,.1,.1, .1, .125,.125,.175,.175) 
 
-
-
-
+skewness(portfolio_returns)
+kurtosis(portfolio_returns)
+hist(portfolio_returns)
+library(fitdistrplus)
+library(logspline)
+descdist(c(portfolio_returns), discrete = FALSE)
 
