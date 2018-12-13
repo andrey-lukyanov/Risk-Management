@@ -9,6 +9,8 @@ import pdb
 data = pd.read_excel(io = 'Вариант4.xls', sheet_name='ratings')
 data['date'] = pd.to_datetime(data['date'], format='yyyy-dd-mm')
 
+ #['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'D']
+
 def build_migration_matrix(start_date, end_date):
     """
     Функция строит матрицу переходов когортным методов для данных типа data, начиная с start_date и заканчивая end_date
@@ -21,13 +23,14 @@ def build_migration_matrix(start_date, end_date):
                           columns = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'D'],
                           index = ['starts'])
     data_slice = data[(data.date >= start_date) & (data.date <= end_date + dt.timedelta(1))]
+    
 
     objects = list(set(data_slice.object))
     
     for object_id in objects:
  
         object_data = data_slice[data_slice.object == object_id].sort_values('date')
-    
+            
         if object_data.iloc[0].date != start_date:
             continue
     
@@ -54,18 +57,21 @@ def build_migration_matrix(start_date, end_date):
         end_rating = object_data.iloc[-1].rating
  
         transition_matrix[end_rating][start_rating] += 1
+    
+    transition_matrix.columns = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'D']
+    transition_matrix.index = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'D']
+        
+    return transition_matrix
 
-    return starts, transition_matrix
-
-def build_transition_probability_matrix(migration_matrix, start_vector):
+def build_transition_probability_matrix(migration_matrix):
     """Функция строит вероятностную матрицу из матрицы миграций и стартового вектора"""
     
-    matrix = (np.matrix(migration_matrix).T / np.array(start_vector)).T
+    matrix = (np.matrix(migration_matrix).T / np.array(migration_matrix.sum(axis = 1))).T
     matrix[-1] = np.zeros(9)
     
     return pd.DataFrame(data=matrix,
-                        columns = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'D'],
-                        index = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'D'])
+                        columns = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'D'],
+                        index = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'D'])
 
 def build_duration_migration_matrix(start_date, end_date):
     '''Функция строит матрицу миграций методом дюраций для указанного периода'''
@@ -105,6 +111,9 @@ def build_duration_migration_matrix(start_date, end_date):
                                     
             frequencies_matrix[new_rating][old_rating] += 1
             frequencies_matrix[old_rating][old_rating] += ((new_date - old_date) / window)
+            
+    frequencies_matrix.columns = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'D']
+    frequencies_matrix.index = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'D']
 
     return frequencies_matrix
 
@@ -127,8 +136,8 @@ def build_generator_matrix(duration_migration_matrix):
 def build_matrix_exponential(generator_matrix):
     """Функция строит matrix exponential для generator_matrix"""
     matrix_exp = pd.DataFrame(data = expm(np.matrix(generator_matrix)),
-                              columns = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'D'],
-                              index = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'D'])
+                              columns = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'D'],
+                              index = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'D'])
     matrix_exp['D']['D'] = 0
     return matrix_exp
 
@@ -149,6 +158,9 @@ class CAP_curve:
     
     def ideal_AUC(self):
         return (1 - self.migration_matrix['D'].sum()/self.migration_matrix.sum().sum() + 1)/2 
+    
+    def AR(self):
+        return (self.AUC()-0.5)/(self.ideal_AUC()-0.5)
         
 def plot_CAP(CAP_curve):
     
@@ -177,7 +189,7 @@ def plot_CAP(CAP_curve):
                  (CAP_curve.migration_matrix['D'].sum()/CAP_curve.migration_matrix.sum().sum(), 1),
                 (CAP_curve.migration_matrix['D'].sum()/CAP_curve.migration_matrix.sum().sum()+0.05, 0.92), size=15);
     print(CAP_curve)
-    print('Ideal AUC-CAP: %s' % np.round(CAP_curve.ideal_AUC(), 3))
+    print('AR: %s' % np.round(CAP_curve.AR(), 3))
     
 class ROC_curve:
     
@@ -203,6 +215,9 @@ class ROC_curve:
     
     def __str__(self):
         return 'AUC-ROC: %s' % np.round(self.AUC(), 3)
+    
+    def AR(self):
+        return (self.AUC()-0.5)/0.5
         
 def plot_ROC(ROC_curve):
     
@@ -229,3 +244,75 @@ def plot_ROC(ROC_curve):
     
     plt.legend(handles=[red_patch, green_patch, blue_patch]);
     print(ROC_curve)
+    print('AR: %s' % np.round(ROC_curve.AR(), 3))
+
+rates_data = pd.read_excel('Вариант4.xls', sheet_name='rf_rate')
+rf_rates = np.array(rates_data.rf_rate)
+
+bond_data = pd.read_excel('Вариант4.xls', sheet_name='bonds')
+spread_data = pd.read_excel('Task_6_AV.xlsx', sheet_name='Rating-spread Data')
+
+    
+class bond():
+    
+    def __init__(self, bond_type, maturity, coupon_rate, frequency = 2):
+        
+        self.type = bond_type
+        self.maturity = maturity
+        self.coupon_rate = coupon_rate
+        self.frequency = frequency
+        
+        self.dates = np.cumsum((np.ones(int(maturity*frequency)) * 0.5))
+        
+        if bond_type == 1:
+            self.interest = np.zeros(int(maturity*frequency))
+            self.principal = np.zeros(int(maturity*frequency))
+            self.principal[-1] = 100
+            self.face_value = np.ones(int(maturity*frequency)) * 100 - self.principal
+            
+            self.payments = self.interest + self.principal
+            
+        elif bond_type == 2:            
+            self.interest = np.ones(int(maturity*frequency)) * coupon_rate
+            self.principal = np.zeros(int(maturity*frequency))
+            self.principal[-1] += 100
+            self.face_value = np.ones(int(maturity*frequency)) * 100 - self.principal
+            
+            self.payments = self.interest + self.principal
+            
+        elif bond_type == 3:
+            self.principal = np.ones(int(maturity*frequency)) * 100 / (maturity*frequency)
+            self.face_value = np.cumsum(self.principal)[::-1]
+            self.interest = self.face_value * coupon_rate / 100
+            
+            self.payments = self.interest + self.principal
+                    
+    def dcf(self, rates_curve, spread):
+        
+        rates = rates_curve + np.ones(len(rates_curve)) * spread
+        rates = rates[:len(self.dates)]
+        
+        return self.payments * np.exp(-rates/100 * self.dates)
+    
+    def default_value(self, LGD = 0.4, horizon = False):
+        
+        if self.type == 3:
+            return self.face_value[:horizon * self.frequency].mean() * LGD
+        else:
+            return LGD * self.face_value[-1]
+            
+            
+class future_bond(bond):
+    
+    def __init__(self, bond, horizon):
+        self.dates = bond.dates[:-horizon * bond.frequency]
+        
+        self.type = bond.type
+        self.maturity = bond.maturity
+        self.coupon_rate = bond.coupon_rate
+        self.frequency = bond.frequency
+        
+        self.interest = bond.interest[horizon * bond.frequency:]
+        self.principal = bond.principal[horizon * bond.frequency:]
+        self.payments = bond.payments[horizon * bond.frequency:]
+        self.face_value = bond.face_value[horizon * bond.frequency:]
